@@ -133,7 +133,7 @@ module "alb" {
       protocol         = "HTTP"
       port             = 80
       target_type      = "instance"
-      target_id        = aws_instance.web.id
+#      target_id        = aws_instance.web.id
     }
   }
 
@@ -153,7 +153,6 @@ module "autoscaling" {
   max_size = 2
 
   vpc_zone_identifier = module.blog_vpc.public_subnets
-  target_group_arns   = module.alb.target_group_arns
   security_groups     = [module.web_sg.security_group_id]
 
   image_id      = data.aws_ami.app_ami.id
