@@ -98,3 +98,47 @@ resource "aws_security_group_rule"  "web_everything_out" {
 
   security_group_id = aws_security_group.web.id
 }
+
+# load balancer
+
+module "alb" {
+  source = "terraform-aws-modules/alb/aws"
+
+  name    = "blog-alb"
+  vpc_id  = module.blog_vpc.vpc_id
+  subnets = module.blog_vpc.public_subnets
+
+  # Security Group
+  security_groups  = module.web_sg.security_group_id
+
+  access_logs = {
+    bucket = "my-alb-logs"
+  }
+
+  listeners = {
+    ex-http-https-redirect = {
+      port     = 80
+      protocol = "HTTP"
+      redirect = {
+        port        = "443"
+        protocol    = "HTTPS"
+        status_code = "HTTP_301"
+      }
+    }
+  }
+
+  target_groups = {
+    ex-instance = {
+      name_prefix      = "blog-"
+      protocol         = "HTTP"
+      port             = 80
+      target_type      = "instance"
+      target_id        = aws_instance.web.id
+    }
+  }
+
+  tags = {
+    Environment = "dev"
+    Project     = "Example"
+  }
+}
