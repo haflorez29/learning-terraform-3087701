@@ -109,7 +109,7 @@ module "alb" {
   subnets = module.blog_vpc.public_subnets
 
   # Security Group
-  security_groups  = module.web_sg.security_group_id
+  security_groups  = [module.web_sg.security_group_id]
 
   access_logs = {
     bucket = "my-alb-logs"
