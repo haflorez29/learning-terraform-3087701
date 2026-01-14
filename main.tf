@@ -50,7 +50,7 @@ resource "aws_instance" "web" {
 module "web_sg" {
   source  = "terraform-aws-modules/security-group/aws"
   version = "5.3.1"
-  name    = "web"
+  name    = "${var.environment.name}-web"
 
 # vpc_id              = data.aws_vpc.default.id
   vpc_id              = module.blog_vpc.vpc_id
@@ -129,7 +129,7 @@ module "alb" {
 
   target_groups = {
     ex-instance = {
-      name_prefix      = "${var.environment.name} -"
+      name_prefix      = "${var.environment.name}-"
       protocol         = "HTTP"
       port             = 80
       target_type      = "instance"
