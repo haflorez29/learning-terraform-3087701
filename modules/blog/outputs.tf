@@ -5,3 +5,7 @@ output "instance_ami" {
 output "instance_arn" {
   value = aws_instance.web.arn
 }
+
+output "environment_url" {
+  value = module.alb.lb_dns_name
+}
