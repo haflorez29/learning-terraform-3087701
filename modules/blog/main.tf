@@ -66,7 +66,7 @@ resource "aws_security_group" "web" {
   name        = "${var.environment.name}-web"
   description = "Allow http and https in web server, and Allow everything out"
 
-  vpc_id      = data.aws_vpc.default.id
+  vpc_id      = module.blog_vpc.vpc_id
 }
 
 resource "aws_security_group_rule"  "web_http_in" {
@@ -133,7 +133,7 @@ module "alb" {
       protocol         = "HTTP"
       port             = 80
       target_type      = "instance"
-      target_id        = aws_instance.web.id
+#      target_id        = aws_instance.web.id
     }
   }
 
