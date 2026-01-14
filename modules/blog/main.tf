@@ -87,13 +87,15 @@ module "alb" {
       }
     }
   }
-
+  
   target_groups = {
     ex-instance = {
       name_prefix = "${var.environment.name}-"
       protocol    = "HTTP"
       port        = 80
       target_type = "instance"
+
+      create_attachment = false
 
       health_check = {
         path                = "/"
@@ -104,6 +106,7 @@ module "alb" {
       }
     }
   }
+
 
   tags = {
     Environment = var.environment.name
