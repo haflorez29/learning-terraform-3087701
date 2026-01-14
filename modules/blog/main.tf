@@ -24,11 +24,15 @@ module "blog_vpc" {
   name = var.environment.name
   cidr = "${var.environment.network_prefix}.0.0/16"
 
-  azs             = ["us-west-2a", "us-west-2b", "us-west-2c"]
-  public_subnets  = ["${var.environment.network_prefix}.101.0/24", "${var.environment.network_prefix}.102.0/24", "${var.environment.network_prefix}.103.0/24"]
+  azs            = ["us-west-2a", "us-west-2b", "us-west-2c"]
+  public_subnets = [
+    "${var.environment.network_prefix}.101.0/24",
+    "${var.environment.network_prefix}.102.0/24",
+    "${var.environment.network_prefix}.103.0/24"
+  ]
 
   tags = {
-    Terraform = "true"
+    Terraform   = "true"
     Environment = var.environment.name
   }
 }
@@ -37,11 +41,9 @@ module "blog_vpc" {
 #  ami           = data.aws_ami.app_ami.id
 #  instance_type = var.instance_type
 #
-#  # vpc_security_group_ids = [aws_security_group.web.id]
 #  vpc_security_group_ids = [module.web_sg.security_group_id]
-
-#  subnet_id =  module.blog_vpc.public_subnets[0]
-
+#  subnet_id = module.blog_vpc.public_subnets[0]
+#
 #  tags = {
 #    Name = "HelloWorld"
 #  }
@@ -50,56 +52,21 @@ module "blog_vpc" {
 module "web_sg" {
   source  = "terraform-aws-modules/security-group/aws"
   version = "5.3.1"
-  name    = "${var.environment.name}-web"
 
-# vpc_id              = data.aws_vpc.default.id
-  vpc_id              = module.blog_vpc.vpc_id
+  name   = "${var.environment.name}-web"
+  # vpc_id              = data.aws_vpc.default.id
+  vpc_id = module.blog_vpc.vpc_id
 
-  ingress_rules       = ["http-80-tcp","https-443-tcp"]
+  ingress_rules       = ["http-80-tcp"]
   ingress_cidr_blocks = ["0.0.0.0/0"]
 
-  egress_rules       = [ "all-all" ]
+  egress_rules       = ["all-all"]
   egress_cidr_blocks = ["0.0.0.0/0"]
 }
 
-resource "aws_security_group" "web" {
-  name        = "${var.environment.name}-web"
-  description = "Allow http and https in web server, and Allow everything out"
-
-  vpc_id      = module.blog_vpc.vpc_id
-}
-
-resource "aws_security_group_rule"  "web_http_in" {
-  type        = "ingress"
-  from_port   = 80
-  to_port     = 80
-  protocol    = "tcp"
-  cidr_blocks = ["0.0.0.0/0"]
-
-  security_group_id = aws_security_group.web.id
-}
-
-resource "aws_security_group_rule"  "web_https_in" {
-  type        = "ingress"
-  from_port   = 443
-  to_port     = 443
-  protocol    = "tcp"
-  cidr_blocks = ["0.0.0.0/0"]
-
-  security_group_id = aws_security_group.web.id
-}
-
-resource "aws_security_group_rule"  "web_everything_out" {
-  type        = "egress"
-  from_port   = 0
-  to_port     = 0
-  protocol    = "-1"
-  cidr_blocks = ["0.0.0.0/0"]
-
-  security_group_id = aws_security_group.web.id
-}
-
-# load balancer
+################################
+# Application Load Balancer
+################################
 
 module "alb" {
   source = "terraform-aws-modules/alb/aws"
@@ -108,21 +75,32 @@ module "alb" {
   vpc_id  = module.blog_vpc.vpc_id
   subnets = module.blog_vpc.public_subnets
 
-  # Security Group
-  security_groups  = [module.web_sg.security_group_id]
-
-  access_logs = {
-    bucket = "my-alb-logs"
-  }
+  security_groups = [module.web_sg.security_group_id]
 
   listeners = {
-    ex-http-https-redirect = {
+    http = {
       port     = 80
       protocol = "HTTP"
-      redirect = {
-        port        = "443"
-        protocol    = "HTTPS"
-        status_code = "HTTP_301"
+
+      forward = {
+        target_group_key = "ex-instance"
+      }
+    }
+  }
+
+  target_groups = {
+    ex-instance = {
+      name_prefix = "${var.environment.name}-"
+      protocol    = "HTTP"
+      port        = 80
+      target_type = "instance"
+
+      health_check = {
+        path                = "/"
+        interval            = 30
+        healthy_threshold   = 2
+        unhealthy_threshold = 2
+        matcher             = "200-399"
       }
     }
   }
@@ -133,11 +111,14 @@ module "alb" {
   }
 }
 
-# autoscaling
+################################
+# Auto Scaling Group
+################################
+
 module "autoscaling" {
   source  = "terraform-aws-modules/autoscaling/aws"
   version = "9.1.0"
-  
+
   name     = "${var.environment.name}-blog"
   min_size = var.min_size
   max_size = var.max_size
@@ -147,9 +128,8 @@ module "autoscaling" {
 
   image_id      = data.aws_ami.app_ami.id
   instance_type = var.instance_type
-}
 
-resource "aws_autoscaling_attachment" "asg_alb" {
-  autoscaling_group_name = module.autoscaling.autoscaling_group_name
-  lb_target_group_arn   = module.alb.target_groups["ex-instance"].arn
+  target_group_arns = [
+    module.alb.target_groups["ex-instance"].arn
+  ]
 }
