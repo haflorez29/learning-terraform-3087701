@@ -127,15 +127,6 @@ module "alb" {
     }
   }
 
-  target_groups = {
-    ex-instance = {
-      name_prefix      = "${var.environment.name}-"
-      protocol         = "HTTP"
-      port             = 80
-      target_type      = "instance"
-    }
-  }
-
   tags = {
     Environment = var.environment.name
     Project     = "Example"
