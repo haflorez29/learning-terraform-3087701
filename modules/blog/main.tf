@@ -133,7 +133,6 @@ module "alb" {
       protocol         = "HTTP"
       port             = 80
       target_type      = "instance"
-#      target_id        = aws_instance.web.id
     }
   }
 
@@ -157,4 +156,6 @@ module "autoscaling" {
 
   image_id      = data.aws_ami.app_ami.id
   instance_type = var.instance_type
+
+  target_group_arns = [module.alb.target_group_arns["ex-instance"]]
 }
